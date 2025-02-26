@@ -1,5 +1,8 @@
 #include <SDL3/SDL_mutex.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_scancode.h>
 #include <stdio.h>
+#include <math.h>
 #include "globals.h"
 #include <stdbool.h>
 #include <SDL3/SDL.h>
@@ -13,7 +16,17 @@ typedef struct Player{
 
 } Player;
 
-Player player;
+Player player = {
+    .x = (float)WINDOW_WIDTH /2,
+    .y = (float)WINDOW_HEIGHT /2,
+    .width = 5.0f,
+    .height = 5.0f,
+    .turn_direction = 0,
+    .walk_direction = 0,
+    .rotation_angle = PI/2,
+    .walk_speed = 100,
+    .turn_speed = 45
+};
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -35,14 +48,7 @@ bool init(){
 }
 
 void setup(){
-    player.x = WINDOW_WIDTH /2;
-    player.y = WINDOW_HEIGHT /2;
-    player.width = 5.0f;
-    player.turn_direction = 0.0f;
-    player.walk_direction = 0.0f;
-    player.rotation_angle = PI/2;
-    player.walk_speed = 100;
-    player.turn_speed = 45;
+
 }
 
 bool process_input(){
@@ -56,13 +62,83 @@ bool process_input(){
         case SDL_SCANCODE_ESCAPE:
           return false;
           break;
+        case SDL_SCANCODE_UP:
+            player.walk_direction = 1;
+            break;
+
+        case SDL_SCANCODE_DOWN:
+             player.walk_direction = -1;
+             break;
+
+        case SDL_SCANCODE_LEFT:
+             player.turn_direction = -1;
+             break;
+
+        case SDL_SCANCODE_RIGHT:
+            player.turn_direction = 1;
+            break;
 
         default:
           break;
       }
+    }//remove this
+    else if(event.type == SDL_EVENT_KEY_UP){
+        switch(event.key.scancode){
+          case SDL_SCANCODE_ESCAPE:
+            return false;
+            break;
+          case SDL_SCANCODE_UP:
+              player.walk_direction = 0;
+              break;
+
+          case SDL_SCANCODE_DOWN:
+               player.walk_direction = 0;
+               break;
+
+          case SDL_SCANCODE_LEFT:
+               player.turn_direction = 0;
+               break;
+
+          case SDL_SCANCODE_RIGHT:
+              player.turn_direction = 0;
+              break;
+
+          default:
+            break;
+        }
     }
   }
   return true;
+}
+
+void render_player(){
+    SDL_SetRenderDrawColor(renderer, 255,255,255,255);
+    SDL_FRect player_rect = {
+        (float)player.x * MINI_MAP_SCALE_FACTOR,
+        (float)player.y * MINI_MAP_SCALE_FACTOR,
+        (float)player.width * MINI_MAP_SCALE_FACTOR,
+        (float)player.height * MINI_MAP_SCALE_FACTOR
+    };
+
+    SDL_RenderLine(
+    renderer,
+    player.x * MINI_MAP_SCALE_FACTOR,
+    player.y * MINI_MAP_SCALE_FACTOR,
+    player.x + cos(player.rotation_angle) * 40 * MINI_MAP_SCALE_FACTOR,
+    player.y + sin(player.rotation_angle) * 40 * MINI_MAP_SCALE_FACTOR
+    );
+    SDL_RenderFillRect(renderer,&player_rect);
+}
+
+void move_player(float delta_time){
+    player.rotation_angle += player.turn_direction * delta_time*player.turn_speed;
+    float move_step = player.walk_direction * player.walk_speed * delta_time;
+
+    float new_player_x = player.x * cos(player.rotation_angle) * move_step;
+    float new_player_y = player.y * sin(player.rotation_angle) * move_step;
+
+    player.x = new_player_x;
+    player.y = new_player_y;
 }
 
 void update(){
@@ -74,13 +150,14 @@ void update(){
     }
 
     float delta_time = ((float)SDL_GetTicks() - previous_ticks)/1000.0f;
+    move_player(delta_time);
 }
 
 void render(){
   SDL_SetRenderDrawColor(renderer,0.3*255,0.9*255,0.7*255,255);
   SDL_RenderClear(renderer);
-  render_map(renderer);
-  //render_player();
+  //render_map(renderer);
+  render_player();
   //render_rays();
   SDL_RenderPresent(renderer);
 }
@@ -94,9 +171,10 @@ void clean_up(){
 
 int main(){
   if(init()){
+    setup();
     while(process_input()){
-        render();
         update();
+        render();
     }
   }
   clean_up();
