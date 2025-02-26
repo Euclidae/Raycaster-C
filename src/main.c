@@ -3,22 +3,46 @@
 #include "globals.h"
 #include <stdbool.h>
 #include <SDL3/SDL.h>
+#include "map.h"
+
+typedef struct Player{
+    float x,y, width, height, rotation_angle, turn_speed;
+    int turn_direction; //-1 for left. +1 for right
+    int walk_direction; //-1 for backwards. +1 for forwards. 0 for stationary
+    int walk_speed;
+
+} Player;
+
+Player player;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
+
+float previous_ticks = 0;
 
 bool init(){
   if(!SDL_Init(SDL_INIT_VIDEO)){
     SDL_Log("SDL failed to initialize. ERROR : %s", SDL_GetError());
     return false;
   }
-  window = SDL_CreateWindow("Raycaster", 1920, 1080, SDL_WINDOW_RESIZABLE);
+  window = SDL_CreateWindow("Raycaster", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
   if(window == NULL){
     fprintf(stderr,"Failed to generate window. SDL_Error : %s", SDL_GetError());
   }
 
   renderer = SDL_CreateRenderer(window, NULL);
   return true;
+}
+
+void setup(){
+    player.x = WINDOW_WIDTH /2;
+    player.y = WINDOW_HEIGHT /2;
+    player.width = 5.0f;
+    player.turn_direction = 0.0f;
+    player.walk_direction = 0.0f;
+    player.rotation_angle = PI/2;
+    player.walk_speed = 100;
+    player.turn_speed = 45;
 }
 
 bool process_input(){
@@ -55,6 +79,9 @@ void update(){
 void render(){
   SDL_SetRenderDrawColor(renderer,0.3*255,0.9*255,0.7*255,255);
   SDL_RenderClear(renderer);
+  render_map(renderer);
+  //render_player();
+  //render_rays();
   SDL_RenderPresent(renderer);
 }
 
