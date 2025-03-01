@@ -17,10 +17,10 @@ typedef struct Player{
 } Player;
 
 Player player = {
-    .x = (float)WINDOW_WIDTH /2,
-    .y = (float)WINDOW_HEIGHT /2,
-    .width = 5.0f,
-    .height = 5.0f,
+    .x = WINDOW_WIDTH /2.0f,
+    .y = WINDOW_HEIGHT /2.0f,
+    .width = 15.0f,
+    .height = 15.0f,
     .turn_direction = 0,
     .walk_direction = 0,
     .rotation_angle = PI/2,
@@ -81,12 +81,8 @@ bool process_input(){
         default:
           break;
       }
-    }//remove this
-    else if(event.type == SDL_EVENT_KEY_UP){
+    }else if(event.type == SDL_EVENT_KEY_UP){
         switch(event.key.scancode){
-          case SDL_SCANCODE_ESCAPE:
-            return false;
-            break;
           case SDL_SCANCODE_UP:
               player.walk_direction = 0;
               break;
@@ -105,7 +101,7 @@ bool process_input(){
 
           default:
             break;
-        }
+    }
     }
   }
   return true;
@@ -124,8 +120,8 @@ void render_player(){
     renderer,
     player.x * MINI_MAP_SCALE_FACTOR,
     player.y * MINI_MAP_SCALE_FACTOR,
-    player.x + cos(player.rotation_angle) * 40 * MINI_MAP_SCALE_FACTOR,
-    player.y + sin(player.rotation_angle) * 40 * MINI_MAP_SCALE_FACTOR
+    (player.x * MINI_MAP_SCALE_FACTOR) + cos(player.rotation_angle) * 40 ,
+    (player.y * MINI_MAP_SCALE_FACTOR) + sin(player.rotation_angle) * 40
     );
     SDL_RenderFillRect(renderer,&player_rect);
 }
@@ -134,8 +130,8 @@ void move_player(float delta_time){
     player.rotation_angle += player.turn_direction * delta_time*player.turn_speed;
     float move_step = player.walk_direction * player.walk_speed * delta_time;
 
-    float new_player_x = player.x * cos(player.rotation_angle) * move_step;
-    float new_player_y = player.y * sin(player.rotation_angle) * move_step;
+    float new_player_x = player.x + cos(player.rotation_angle) * move_step;
+    float new_player_y = player.y + sin(player.rotation_angle) * move_step;
 
     player.x = new_player_x;
     player.y = new_player_y;
