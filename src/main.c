@@ -1,6 +1,3 @@
-#include <SDL3/SDL_mutex.h>
-#include <SDL3/SDL_oldnames.h>
-#include <SDL3/SDL_scancode.h>
 #include <stdio.h>
 #include <math.h>
 #include "globals.h"
@@ -24,8 +21,8 @@ Player player = {
     .turn_direction = 0,
     .walk_direction = 0,
     .rotation_angle = PI/2,
+    .turn_speed = 45,
     .walk_speed = 100,
-    .turn_speed = 45
 };
 
 SDL_Window* window = NULL;
@@ -45,10 +42,6 @@ bool init(){
 
   renderer = SDL_CreateRenderer(window, NULL);
   return true;
-}
-
-void setup(){
-
 }
 
 bool process_input(){
@@ -120,39 +113,44 @@ void render_player(){
     renderer,
     player.x * MINI_MAP_SCALE_FACTOR,
     player.y * MINI_MAP_SCALE_FACTOR,
-    (player.x * MINI_MAP_SCALE_FACTOR) + cos(player.rotation_angle) * 40 ,
-    (player.y * MINI_MAP_SCALE_FACTOR) + sin(player.rotation_angle) * 40
+    (player.x * MINI_MAP_SCALE_FACTOR) + cos(player.rotation_angle) * 20 ,
+    (player.y * MINI_MAP_SCALE_FACTOR) + sin(player.rotation_angle) * 20
     );
     SDL_RenderFillRect(renderer,&player_rect);
 }
 
 void move_player(float delta_time){
-    player.rotation_angle += player.turn_direction * delta_time*player.turn_speed;
+    //turn direction and turn speed create the angle. delta time just attaches that angle to time
+    player.rotation_angle += player.turn_direction * delta_time * player.turn_speed;
     float move_step = player.walk_direction * player.walk_speed * delta_time;
 
-    float new_player_x = player.x + cos(player.rotation_angle) * move_step;
-    float new_player_y = player.y + sin(player.rotation_angle) * move_step;
-
-    player.x = new_player_x;
-    player.y = new_player_y;
+    if(map_has_wall_at(player.x, player.y)){
+        player.x += -1;
+        player.y += -1;
+    }else{
+        player.x += (cos(player.rotation_angle) * move_step);
+        player.y += (sin(player.rotation_angle) * move_step);
+    }
 }
 
 void update(){
-    int delay = (int)FRAME_TIME_LENGTH -(int)(SDL_GetTicks() - previous_ticks);
-    previous_ticks = (float)SDL_GetTicks();
+    float current_ticks = (float)SDL_GetTicks();
+    float delta_time = (current_ticks - previous_ticks) / 1000.0f;
+    previous_ticks = current_ticks;
 
+    // Cap frame rate if necessary
+    int delay = (int)(FRAME_TIME_LENGTH - (SDL_GetTicks() - previous_ticks));
     if(delay > 0 && delay <= FRAME_TIME_LENGTH){
         SDL_Delay(delay);
     }
 
-    float delta_time = ((float)SDL_GetTicks() - previous_ticks)/1000.0f;
     move_player(delta_time);
 }
 
 void render(){
   SDL_SetRenderDrawColor(renderer,0.3*255,0.9*255,0.7*255,255);
   SDL_RenderClear(renderer);
-  //render_map(renderer);
+  render_map(renderer);
   render_player();
   //render_rays();
   SDL_RenderPresent(renderer);
@@ -164,10 +162,13 @@ void clean_up(){
   SDL_Quit();
 }
 
+void setup(){
+    SDL_GLContext context = SDL_GL_CreateContext(window);
+    SDL_GL_MakeCurrent(window,context);
+}
 
 int main(){
   if(init()){
-    setup();
     while(process_input()){
         update();
         render();

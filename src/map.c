@@ -3,14 +3,12 @@
 #include <SDL3/SDL_render.h>
 
 void render_map(SDL_Renderer* renderer){
-
-    for(int i = 0; i < MAP_NUM_COLS; ++i){
-        for(int j = 0; j < MAP_NUM_ROWS; ++j){
+    for(int i = 0; i < MAP_NUM_ROWS; ++i){
+        for(int j = 0; j < MAP_NUM_COLS; ++j){
             SDL_Color tile_color;
             float tile_x, tile_y;
-
-            tile_x = (float)TILE_SIZE * i;
-            tile_y = (float)TILE_SIZE * j;
+            tile_x = (float)TILE_SIZE * j; // j is column index
+            tile_y = (float)TILE_SIZE * i; // i is row index
 
             if(map[i][j] == 0){
                 tile_color.r = 0;
@@ -34,4 +32,18 @@ void render_map(SDL_Renderer* renderer){
             SDL_RenderFillRect(renderer,&tile);
         }
     }
+}
+
+bool map_has_wall_at(float x, float y) {
+    // Convert pixel coordinates to grid indices
+    int gridX = (int)floor(x / TILE_SIZE);
+    int gridY = (int)floor(y / TILE_SIZE);
+
+    // Check if indices are outside the map bounds
+    if (gridX < 0 || gridX >= MAP_NUM_COLS || gridY < 0 || gridY >= MAP_NUM_ROWS) {
+        return true; // Treat out-of-bounds as walls
+    }
+
+    // Return true if the map cell is non-zero (wall)
+    return (map[gridY][gridX] != 0); // Note: gridY first, then gridX
 }
