@@ -134,15 +134,16 @@ void move_player(float delta_time){
 }
 
 void update(){
-    float current_ticks = (float)SDL_GetTicks();
-    float delta_time = (current_ticks - previous_ticks) / 1000.0f;
+    float current_ticks = (float)SDL_GetTicks()/1000.0f;
+    float delta_time = current_ticks - previous_ticks;
     previous_ticks = current_ticks;
 
     // Cap frame rate if necessary
     int delay = (int)(FRAME_TIME_LENGTH - (SDL_GetTicks() - previous_ticks));
-    if(delay > 0 && delay <= FRAME_TIME_LENGTH){
-        SDL_Delay(delay);
-    }
+    // if(delay > 0 && delay <= FRAME_TIME_LENGTH){
+    //     SDL_Delay(delay);
+    // }
+    SDL_Delay((int)FRAME_TIME_LENGTH);
 
     move_player(delta_time);
 }
@@ -160,11 +161,6 @@ void clean_up(){
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
-}
-
-void setup(){
-    SDL_GLContext context = SDL_GL_CreateContext(window);
-    SDL_GL_MakeCurrent(window,context);
 }
 
 int main(){
