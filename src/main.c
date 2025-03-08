@@ -13,6 +13,21 @@ typedef struct Player{
 
 } Player;
 
+typedef struct Ray{
+    float ray_angle;
+    float wall_hit_x;
+    float wall_hit_y;
+    float distance;
+    bool was_his_vertical;
+    bool is_ray_facing_up;
+    bool is_ray_facing_down;
+    bool is_ray_facing_left;
+    bool is_ray_facing_right;
+    int wall_hit_content;
+} Ray;
+
+Ray rays[NUM_RAYS];
+
 Player player = {
     .x = WINDOW_WIDTH /2.0f,
     .y = WINDOW_HEIGHT /2.0f,
@@ -100,6 +115,74 @@ bool process_input(){
   return true;
 }
 
+float normalize_angle(float angle){
+    angle = remainder(angle, TWO_PI);
+    if(angle < 0){
+        angle = TWO_PI + angle;
+    }
+    return angle;
+}
+
+void cast_ray(float ray_angle,int strip_id){
+    ray_angle = normalize_angle(ray_angle);
+
+    bool is_ray_facing_up = ray_angle > 0 && ray_angle < PI;
+    bool is_ray_facing_down = !is_ray_facing_up;
+    bool is_ray_facing_left = ray_angle < (0.5*PI) || ray_angle > (1.5 * PI);
+    bool is_ray_facing_right =  !is_ray_facing_left;
+
+    float x_step, y_step;
+    float x_intercept, y_intercept;
+
+    bool found_horz_wall_hit = false;
+    float horz_wall_hit_x = 0;
+    float horz_wall_hit_y = 0;
+    int horz_wall_content = 0;
+
+    y_intercept = floor(player.y /TILE_SIZE) * TILE_SIZE;
+    y_intercept += is_ray_facing_down? TILE_SIZE : 0;
+
+    x_intercept = player.x + (y_intercept - player.y) /tan(ray_angle);
+
+    y_step = TILE_SIZE;
+    y_step *= is_ray_facing_up? -1 : 1;
+
+    x_step = TILE_SIZE / tan(ray_angle);
+    x_step *= (is_ray_facing_left && x_step > 0)? -1 : 1;
+    x_step *= (is_ray_facing_right && x_step < 0)? -1 : 1;
+
+    float next_horz_touch_x = x_intercept;
+    float next_horz_touch_y = y_intercept;
+
+    while(next_horz_touch_x >= 0 && next_horz_touch_x <= WINDOW_WIDTH && next_horz_touch_y >= 0 && next_horz_touch_y <= WINDOW_HEIGHT){
+        float x_to_check = next_horz_touch_x;
+        float y_to_check = next_horz_touch_y + (is_ray_facing_up? -1 : 0);
+
+        if(map_has_wall_at(x_to_check, y_to_check)){
+            //found the wall ollision
+            horz_wall_hit_x = next_horz_touch_x;
+            horz_wall_hit_y = next_horz_touch_y;
+            found_horz_wall_hit = true;
+            horz_wall_content = map[(int)floor(y_to_check / TILE_SIZE)][(int)floor(x_to_check/TILE_SIZE)];
+        }else{
+            next_horz_touch_x += x_step;
+            next_horz_touch_y += y_step;
+        }
+    }
+
+}
+
+void cast_all_rays(){
+    float ray_angle = player.rotation_angle - FOV_ANGLE/2;
+    for(int strip_id = 0;  strip_id < NUM_RAYS; ++strip_id){
+        cast_ray(ray_angle,strip_id);
+        ray_angle+=FOV_ANGLE/NUM_RAYS;
+    }
+}
+void render_rays(){
+
+}
+
 void render_player(){
     SDL_SetRenderDrawColor(renderer, 255,255,255,255);
     SDL_FRect player_rect = {
@@ -144,8 +227,8 @@ void update(){
     //     SDL_Delay(delay);
     // }
     SDL_Delay((int)FRAME_TIME_LENGTH);
-
     move_player(delta_time);
+    //cast_all_rays();
 }
 
 void render(){
