@@ -1,5 +1,4 @@
 #include <SDL3/SDL_render.h>
-#include <math.h>
 #include "globals.h"
 #include <stdbool.h>
 #include <SDL3/SDL.h>
