@@ -16,8 +16,9 @@
 
 #define FPS 30
 #define FRAME_TIME_LENGTH 1000.0/FPS //How many milliseconds per frame.
-#define MINI_MAP_SCALE_FACTOR 0.3f
+#define MINI_MAP_SCALE_FACTOR 1.0f
 
 #include <stdio.h>
+#include <limits.h>
 
 #endif

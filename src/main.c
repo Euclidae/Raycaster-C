@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <SDL3/SDL_render.h>
 #include <math.h>
 #include "globals.h"
 #include <stdbool.h>
@@ -18,7 +18,7 @@ typedef struct Ray{
     float wall_hit_x;
     float wall_hit_y;
     float distance;
-    bool was_his_vertical;
+    bool was_hit_vertical;
     bool is_ray_facing_up;
     bool is_ray_facing_down;
     bool is_ray_facing_left;
@@ -123,64 +123,190 @@ float normalize_angle(float angle){
     return angle;
 }
 
-void cast_ray(float ray_angle,int strip_id){
+float distance_between_points(float x1, float y1, float x2, float y2) {
+    return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
+
+void cast_ray(float ray_angle, int strip_id) {
+    // Normalize the angle to ensure it's between 0 and 2*PI
     ray_angle = normalize_angle(ray_angle);
 
+    // Determine ray direction flags
     bool is_ray_facing_up = ray_angle > 0 && ray_angle < PI;
     bool is_ray_facing_down = !is_ray_facing_up;
-    bool is_ray_facing_left = ray_angle < (0.5*PI) || ray_angle > (1.5 * PI);
-    bool is_ray_facing_right =  !is_ray_facing_left;
+    bool is_ray_facing_left = ray_angle < (0.5 * PI) || ray_angle > (1.5 * PI);
+    bool is_ray_facing_right = !is_ray_facing_left;
 
     float x_step, y_step;
     float x_intercept, y_intercept;
 
+    /**************** HORIZONTAL RAY-GRID INTERSECTION CODE ****************/
     bool found_horz_wall_hit = false;
     float horz_wall_hit_x = 0;
     float horz_wall_hit_y = 0;
     int horz_wall_content = 0;
 
-    y_intercept = floor(player.y /TILE_SIZE) * TILE_SIZE;
-    y_intercept += is_ray_facing_down? TILE_SIZE : 0;
+    // Find the y-coordinate of the closest horizontal grid intersection
+    y_intercept = floor(player.y / TILE_SIZE) * TILE_SIZE;
+    y_intercept += is_ray_facing_down ? TILE_SIZE : 0;
 
-    x_intercept = player.x + (y_intercept - player.y) /tan(ray_angle);
+    // Find the x-coordinate of the closest horizontal grid intersection
+    if (fabs(sin(ray_angle)) < 0.000001) {
+        // Handle nearly horizontal rays to avoid division by zero
+        x_intercept = player.x;
+    } else {
+        x_intercept = player.x + (y_intercept - player.y) / tan(ray_angle);
+    }
 
+    // Calculate the increment xstep and ystep
     y_step = TILE_SIZE;
-    y_step *= is_ray_facing_up? -1 : 1;
+    y_step *= is_ray_facing_up ? -1 : 1;
 
-    x_step = TILE_SIZE / tan(ray_angle);
-    x_step *= (is_ray_facing_left && x_step > 0)? -1 : 1;
-    x_step *= (is_ray_facing_right && x_step < 0)? -1 : 1;
+    if (fabs(sin(ray_angle)) < 0.000001) {
+        // If ray is nearly horizontal, make x_step very large in the correct direction
+        x_step = is_ray_facing_right ? WINDOW_WIDTH : -WINDOW_WIDTH;
+    } else {
+        x_step = TILE_SIZE / tan(ray_angle);
+        // Ensure x_step is in the correct direction
+        x_step *= (is_ray_facing_left && x_step > 0) ? -1 : 1;
+        x_step *= (is_ray_facing_right && x_step < 0) ? -1 : 1;
+    }
 
     float next_horz_touch_x = x_intercept;
     float next_horz_touch_y = y_intercept;
 
-    while(next_horz_touch_x >= 0 && next_horz_touch_x <= WINDOW_WIDTH && next_horz_touch_y >= 0 && next_horz_touch_y <= WINDOW_HEIGHT){
-        float x_to_check = next_horz_touch_x;
-        float y_to_check = next_horz_touch_y + (is_ray_facing_up? -1 : 0);
+    // Increment xstep and ystep until we find a wall
+    int max_checks = 1000; // Prevent infinite loops
+    int checks = 0;
 
-        if(map_has_wall_at(x_to_check, y_to_check)){
-            //found the wall ollision
+    while (next_horz_touch_x >= 0 && next_horz_touch_x <= WINDOW_WIDTH &&
+           next_horz_touch_y >= 0 && next_horz_touch_y <= WINDOW_HEIGHT &&
+           checks < max_checks) {
+
+        float x_to_check = next_horz_touch_x;
+        float y_to_check = next_horz_touch_y + (is_ray_facing_up ? -1 : 0);
+
+        if (map_has_wall_at(x_to_check, y_to_check)) {
+            // Found a wall hit
             horz_wall_hit_x = next_horz_touch_x;
             horz_wall_hit_y = next_horz_touch_y;
             found_horz_wall_hit = true;
-            horz_wall_content = map[(int)floor(y_to_check / TILE_SIZE)][(int)floor(x_to_check/TILE_SIZE)];
-        }else{
+            horz_wall_content = map[(int)floor(y_to_check / TILE_SIZE)][(int)floor(x_to_check / TILE_SIZE)];
+            break;
+        } else {
             next_horz_touch_x += x_step;
             next_horz_touch_y += y_step;
+            checks++;
         }
     }
 
+    /**************** VERTICAL RAY-GRID INTERSECTION CODE ****************/
+    bool found_vert_wall_hit = false;
+    float vert_wall_hit_x = 0;
+    float vert_wall_hit_y = 0;
+    int vert_wall_content = 0;
+
+    // Find the x-coordinate of the closest vertical grid intersection
+    x_intercept = floor(player.x / TILE_SIZE) * TILE_SIZE;
+    x_intercept += is_ray_facing_right ? TILE_SIZE : 0;
+
+    // Find the y-coordinate of the closest vertical grid intersection
+    if (fabs(cos(ray_angle)) < 0.000001) {
+        // Handle nearly vertical rays to avoid division by zero
+        y_intercept = player.y;
+    } else {
+        y_intercept = player.y + (x_intercept - player.x) * tan(ray_angle);
+    }
+
+    // Calculate the increment xstep and ystep
+    x_step = TILE_SIZE;
+    x_step *= is_ray_facing_left ? -1 : 1;
+
+    if (fabs(cos(ray_angle)) < 0.000001) {
+        // If ray is nearly vertical, make y_step very large in the correct direction
+        y_step = is_ray_facing_down ? WINDOW_HEIGHT : -WINDOW_HEIGHT;
+    } else {
+        y_step = TILE_SIZE * tan(ray_angle);
+        // Ensure y_step is in the correct direction
+        y_step *= (is_ray_facing_up && y_step > 0) ? -1 : 1;
+        y_step *= (is_ray_facing_down && y_step < 0) ? -1 : 1;
+    }
+
+    float next_vert_touch_x = x_intercept;
+    float next_vert_touch_y = y_intercept;
+
+    // Increment xstep and ystep until we find a wall
+    checks = 0;
+
+    while (next_vert_touch_x >= 0 && next_vert_touch_x <= WINDOW_WIDTH &&
+           next_vert_touch_y >= 0 && next_vert_touch_y <= WINDOW_HEIGHT &&
+           checks < max_checks) {
+
+        float x_to_check = next_vert_touch_x + (is_ray_facing_left ? -1 : 0);
+        float y_to_check = next_vert_touch_y;
+
+        if (map_has_wall_at(x_to_check, y_to_check)) {
+            // Found a wall hit
+            vert_wall_hit_x = next_vert_touch_x;
+            vert_wall_hit_y = next_vert_touch_y;
+            found_vert_wall_hit = true;
+            vert_wall_content = map[(int)floor(y_to_check / TILE_SIZE)][(int)floor(x_to_check / TILE_SIZE)];
+            break;
+        } else {
+            next_vert_touch_x += x_step;
+            next_vert_touch_y += y_step;
+            checks++;
+        }
+    }
+
+    // Calculate both horizontal and vertical hit distances and choose the smallest one
+    float horz_hit_distance = found_horz_wall_hit ?
+        distance_between_points(player.x, player.y, horz_wall_hit_x, horz_wall_hit_y) :
+        INT_MAX;  // Use FLT_MAX instead of INT_MAX for float comparison
+
+    float vert_hit_distance = found_vert_wall_hit ?
+        distance_between_points(player.x, player.y, vert_wall_hit_x, vert_wall_hit_y) :
+        INT_MAX;  // Use FLT_MAX instead of INT_MAX for float comparison
+
+    // Store the smallest of the distances
+    if (vert_hit_distance < horz_hit_distance) {
+        rays[strip_id].distance = vert_hit_distance;
+        rays[strip_id].wall_hit_x = vert_wall_hit_x;
+        rays[strip_id].wall_hit_y = vert_wall_hit_y;
+        rays[strip_id].wall_hit_content = vert_wall_content;
+        rays[strip_id].was_hit_vertical = true;
+    } else {
+        rays[strip_id].distance = horz_hit_distance;
+        rays[strip_id].wall_hit_x = horz_wall_hit_x;
+        rays[strip_id].wall_hit_y = horz_wall_hit_y;
+        rays[strip_id].wall_hit_content = horz_wall_content;
+        rays[strip_id].was_hit_vertical = false;
+    }
+
+    // Save the ray angle and direction flags
+    rays[strip_id].ray_angle = ray_angle;
+    rays[strip_id].is_ray_facing_down = is_ray_facing_down;
+    rays[strip_id].is_ray_facing_left = is_ray_facing_left;
+    rays[strip_id].is_ray_facing_right = is_ray_facing_right;
+    rays[strip_id].is_ray_facing_up = is_ray_facing_up;
 }
 
-void cast_all_rays(){
-    float ray_angle = player.rotation_angle - FOV_ANGLE/2;
-    for(int strip_id = 0;  strip_id < NUM_RAYS; ++strip_id){
-        cast_ray(ray_angle,strip_id);
-        ray_angle+=FOV_ANGLE/NUM_RAYS;
+void cast_all_rays() {
+    // Start at the leftmost angle of the FOV
+    float ray_angle = player.rotation_angle - (FOV_ANGLE / 2);
+
+    for(int strip_id = 0; strip_id < NUM_RAYS; strip_id++) {
+        cast_ray(ray_angle, strip_id);
+        // Move to the next angle within the FOV
+        ray_angle += FOV_ANGLE / NUM_RAYS;
     }
 }
-void render_rays(){
 
+void render_rays(){
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+    for(int i = 0; i < NUM_RAYS; ++i){
+        SDL_RenderLine(renderer,player.x,player.y,rays[i].wall_hit_x,rays[i].wall_hit_y);
+    }
 }
 
 void render_player(){
@@ -228,7 +354,7 @@ void update(){
     // }
     SDL_Delay((int)FRAME_TIME_LENGTH);
     move_player(delta_time);
-    //cast_all_rays();
+    cast_all_rays();
 }
 
 void render(){
@@ -236,7 +362,7 @@ void render(){
   SDL_RenderClear(renderer);
   render_map(renderer);
   render_player();
-  //render_rays();
+  render_rays();
   SDL_RenderPresent(renderer);
 }
 
