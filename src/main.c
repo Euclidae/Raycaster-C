@@ -108,7 +108,7 @@ bool process_input(){
 
           default:
             break;
-    }
+      }
     }
   }
   return true;
@@ -131,7 +131,7 @@ void cast_ray(float ray_angle, int strip_id) {
     ray_angle = normalize_angle(ray_angle);
 
     // Determine ray direction flags
-    bool is_ray_facing_up = ray_angle > 0 && ray_angle < PI;
+    bool is_ray_facing_up = ray_angle > 0 && ray_angle <= PI;
     bool is_ray_facing_down = !is_ray_facing_up;
     bool is_ray_facing_left = ray_angle < (0.5 * PI) || ray_angle > (1.5 * PI);
     bool is_ray_facing_right = !is_ray_facing_left;
@@ -139,7 +139,6 @@ void cast_ray(float ray_angle, int strip_id) {
     float x_step, y_step;
     float x_intercept, y_intercept;
 
-    /**************** HORIZONTAL RAY-GRID INTERSECTION CODE ****************/
     bool found_horz_wall_hit = false;
     float horz_wall_hit_x = 0;
     float horz_wall_hit_y = 0;
@@ -304,7 +303,7 @@ void cast_all_rays() {
 void render_rays(){
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
     for(int i = 0; i < NUM_RAYS; ++i){
-        SDL_RenderLine(renderer,player.x,player.y,rays[i].wall_hit_x,rays[i].wall_hit_y);
+        SDL_RenderLine(renderer,player.x*MINI_MAP_SCALE_FACTOR,player.y*MINI_MAP_SCALE_FACTOR,rays[i].wall_hit_x*MINI_MAP_SCALE_FACTOR,rays[i].wall_hit_y*MINI_MAP_SCALE_FACTOR);
     }
 }
 
